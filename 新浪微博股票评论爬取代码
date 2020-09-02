@@ -1,0 +1,68 @@
+import re,requests,codecs,time,random
+from lxml import html
+
+
+#proxies={"http": "http://136.228.128.6:43117"   # http  型的}
+proxies=None
+headers = {
+    'Host': 'istock.jrj.com.cn',
+    'Connection':'close',
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/85.0.4168.3 Safari/537.36'}
+def get_url(page):
+    stocknum='002594'
+    url='http://istock.jrj.com.cn/list,'+stocknum+',p'+str(page)+'.html'
+    try:
+        text=requests.get(url,headers=headers,proxies=proxies,timeout=20)
+        requests.adapters.DEFAULT_RETRIES = 5
+        s = requests.session()
+        s.keep_alive = False
+        text=html.fromstring(text.text)
+        urls=text.xpath('//*[@id="topiclisttitle"]/tr[@name="titlehb"]/td[3]/a/@href')
+    except Exception as e:
+        print(e)
+        time.sleep(random.random() + random.randint(0, 1))
+        urls=''
+    return urls
+def get_comments(urls):
+    for newurl in urls:
+        #print(newurl)
+        #newurl1='http://istock.jrj.com.cn/article,002594,'+newurl
+        #print(newurl1)
+        time.sleep(random.random() + random.randint(0, 2))
+        try:
+            text1=requests.get(newurl,headers=headers,proxies=proxies,timeout=20)
+            requests.adapters.DEFAULT_RETRIES = 5
+            s = requests.session()
+            s.keep_alive = False
+            text1=html.fromstring(text1.text)
+            times1=text1.xpath('//div[@class="IStock_Thread wrap bc"]/div[@class="dcon"]/div[@class="IStock_Thread artical"]/div[@class="content"]/div[2]/p[@class="title"]/text()')
+            times2 = re.sub(r'\s+','', times1[1])
+            times='!'.join(times2[3:13] for x in times2).split('!')
+            #times=list(map(lambda x:re.sub(re.compile('发表于| '),'',x)[:10],times))
+            comments1=text1.xpath('//div[@class="IStock_Thread wrap bc"]/div[@class="dcon"]/div[@class="IStock_Thread artical"]/div[@class="content"]/div[@class="tit"]/h1[@class="fl"]/text()')
+            comments='!'.join(w.strip() for w in comments1).split('!')
+            dic=dict(zip(times,comments))
+            save_to_file(dic)
+        except:
+            print('error!!!!')
+            time.sleep(random.random()+random.randint(0, 3))
+        #print(dic)
+        #if times and comments:
+        #dic.append({'time':times,'comment':comments})
+    #return dic
+def save_to_file(dic):
+    if dic:
+        #dic=dic
+        print(dic)
+        #df=pd.DataFrame([dic]).T
+        #df.to_excel('eastnoney.xlsx')
+        for i,j in dic.items():
+            output='{}\t{}\n'.format(i,j)
+            f=codecs.open('aigumoney.xls','a+','utf-8')
+            f.write(output)
+            f.close()
+
+for page in range(18,246):
+    print('正在爬取第{}页'.format(page))
+    urls=get_url(page)
+    dic=get_comments(urls)
